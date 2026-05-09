@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { siteConfig } from '@/libs/data'
 import styles from './AProposPage.module.css'
@@ -11,9 +11,11 @@ import styles from './AProposPage.module.css'
 export default function AProposPage() {
   const rootRef = useRef(null)
   const ctxRef  = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   /* ── Entrance GSAP ─────────────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -22,43 +24,36 @@ export default function AProposPage() {
 
       ctxRef.current = gsap.context(() => {
         /* Hero */
-        gsap.from('[data-ap="hero"] > *', {
-          y: 32, opacity: 0, stagger: 0.1,
-          duration: 0.8, ease: 'power3.out', delay: 0.1,
-        })
+        gsap.fromTo('[data-ap="hero"] > *', 
+          { y: 32, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: 'power3.out', delay: 0.1 }
+        )
 
         /* Sections au scroll */
         gsap.utils.toArray('[data-ap="block"]').forEach(el => {
-          gsap.from(el.querySelectorAll(':scope > *'), {
-            y: 26, opacity: 0, stagger: 0.09,
-            duration: 0.7, ease: 'power3.out',
-            scrollTrigger: { trigger: el, start: 'top 85%' },
-          })
+          gsap.fromTo(el.querySelectorAll(':scope > *'), 
+            { y: 26, opacity: 0 }, 
+            { y: 0, opacity: 1, stagger: 0.09, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 85%' } }
+          )
         })
 
         /* Valeurs */
-        gsap.from('[data-ap="val"]', {
-          y: 20, opacity: 0,
-          stagger: { amount: 0.4 }, duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ap="vals"]', start: 'top 82%' },
-        })
+        gsap.fromTo('[data-ap="val"]', 
+          { y: 20, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: { amount: 0.4 }, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-ap="vals"]', start: 'top 82%' } }
+        )
 
         /* Livraison cards */
-        gsap.from('[data-ap="lcard"]', {
-          y: 24, opacity: 0,
-          stagger: 0.1, duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ap="lcards"]', start: 'top 84%' },
-        })
+        gsap.fromTo('[data-ap="lcard"]', 
+          { y: 24, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-ap="lcards"]', start: 'top 84%' } }
+        )
 
         /* FAQ */
-        gsap.from('[data-ap="faq"]', {
-          y: 18, opacity: 0,
-          stagger: 0.08, duration: 0.55,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ap="faqlist"]', start: 'top 85%' },
-        })
+        gsap.fromTo('[data-ap="faq"]', 
+          { y: 18, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.08, duration: 0.55, ease: 'power3.out', scrollTrigger: { trigger: '[data-ap="faqlist"]', start: 'top 85%' } }
+        )
       }, rootRef.current)
     }
     init()

@@ -33,27 +33,35 @@ const innerMaterial = new THREE.MeshStandardMaterial({
 export default function FloralExperience3D() {
   const [perfSucks, degrade] = useState(false)
   const sectionRef = useRef(null)
-  const containerRef = useRef(null) // Nécessaire pour le scope GSAP
+  const containerRef = useRef(null)
   const scrollProgress = useRef(0)
+  const ctxRef = useRef(null)
 
   useEffect(() => {
-    let ctx;
-
     const initGSAP = async () => {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
       gsap.registerPlugin(ScrollTrigger)
 
-      // gsap.context nettoie TOUT (y compris les spacers du 'pin') au démontage
-      ctx = gsap.context(() => {
-        
-        // Pin principal
+      const section = sectionRef.current
+      if (!section) return
+
+      // S'assurer que le texte est visible avant l'animation
+      gsap.set('[data-fe3="eyebrow"]', { opacity: 1, y: 0 })
+      gsap.set('[data-fe3="line1"]', { opacity: 1, y: 0 })
+      gsap.set('[data-fe3="line2"]', { opacity: 1, y: 0 })
+      gsap.set('[data-fe3="tag"]', { opacity: 1, y: 0 })
+      gsap.set('[data-fe3="text-group"]', { opacity: 1, y: 0 })
+
+      ctxRef.current = gsap.context(() => {
+        // Pin principal — correction : on épingle la section elle-même
         ScrollTrigger.create({
-          trigger: sectionRef.current,
+          trigger: section,
           start: 'top top',
-          end: '+=250%',
+          end: '+=200%',
           pin: true,
-          scrub: 2,
+          pinSpacing: true,
+          scrub: 1.8,
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
@@ -64,32 +72,40 @@ export default function FloralExperience3D() {
         // Overlay texte
         const textTimeline = gsap.timeline({
           scrollTrigger: {
-            trigger: sectionRef.current,
+            trigger: section,
             start: 'top top',
-            end: '+=250%',
+            end: '+=200%',
             scrub: 1.4,
           }
         })
 
         textTimeline
-          .from('[data-fe3="eyebrow"]', { opacity: 0, y: 24, duration: 0.25 }, 0.10)
-          .from('[data-fe3="line1"]', { opacity: 0, y: 36, duration: 0.30 }, 0.18)
-          .from('[data-fe3="line2"]', { opacity: 0, y: 36, duration: 0.30 }, 0.28)
-          .from('[data-fe3="tag"]', { opacity: 0, stagger: 0.10, duration: 0.25 }, 0.38)
-          .to('[data-fe3="text-group"]', { opacity: 0, y: -24, duration: 0.25 }, 0.72)
-
-      }, containerRef) // Scope au containerRef
+          .fromTo('[data-fe3="eyebrow"]', 
+            { opacity: 0, y: 24 },
+            { opacity: 1, y: 0, duration: 0.25 }, 0.10)
+          .fromTo('[data-fe3="line1"]', 
+            { opacity: 0, y: 36 },
+            { opacity: 1, y: 0, duration: 0.30 }, 0.18)
+          .fromTo('[data-fe3="line2"]', 
+            { opacity: 0, y: 36 },
+            { opacity: 1, y: 0, duration: 0.30 }, 0.28)
+          .fromTo('[data-fe3="tag"]', 
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, stagger: 0.10, duration: 0.25 }, 0.38)
+          .to('[data-fe3="text-group"]', 
+            { opacity: 0, y: -24, duration: 0.25 }, 0.72)
+      }, section)
     }
 
     initGSAP()
 
     return () => {
-      if (ctx) ctx.revert() // Supprime proprement les triggers et les modifications DOM
+      if (ctxRef.current) ctxRef.current.revert()
     }
   }, [])
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className={styles.container}>
       <section
         ref={sectionRef}
         className={styles.section}

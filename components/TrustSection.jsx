@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './TrustSection.module.css'
 
 /* ── Piliers ────────────────────────────────────────────── */
@@ -38,8 +38,10 @@ export default function TrustSection() {
   const sectionRef = useRef(null)
   const pillarsRef = useRef(null)
   const ctxRef = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     let gsap, ScrollTrigger
 
     async function init() {
@@ -52,60 +54,33 @@ export default function TrustSection() {
       const pillarsEl = pillarsRef.current
       if (!el || !pillarsEl) return
 
-      // IMPORTANT : reset safe avant animation (évite blocage opacity:0)
+      // S'assurer que les piliers sont visibles avant animation
       gsap.set('[data-ts="pillar"]', { opacity: 1, y: 0 })
 
       ctxRef.current = gsap.context(() => {
         /* Ligne horizontale */
-        gsap.from('[data-ts="rule"]', {
-          scaleX: 0,
-          transformOrigin: 'left center',
-          duration: 1.2,
-          ease: 'power3.inOut',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 80%',
-          },
-        })
+        gsap.fromTo('[data-ts="rule"]', 
+          { scaleX: 0 },
+          { scaleX: 1, transformOrigin: 'left center', duration: 1.2, ease: 'power3.inOut', scrollTrigger: { trigger: el, start: 'top 80%' } }
+        )
 
         /* Header */
-        gsap.from('[data-ts="header"] > *', {
-          y: 22,
-          opacity: 0,
-          stagger: 0.1,
-          duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 82%',
-          },
-        })
+        gsap.fromTo('[data-ts="header"] > *', 
+          { y: 22, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 82%' } }
+        )
 
         /* 🔥 PILIERS FIXÉ ICI (PROBLÈME PRINCIPAL RÉSOLU) */
-        gsap.from('[data-ts="pillar"]', {
-          y: 36,
-          opacity: 0,
-          stagger: 0.2,
-          duration: 0.75,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: pillarsEl,
-            start: 'top 80%',
-            once: true,
-          },
-        })
+        gsap.fromTo('[data-ts="pillar"]', 
+          { y: 36, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.2, duration: 0.75, ease: 'power3.out', scrollTrigger: { trigger: pillarsEl, start: 'top 80%', once: true } }
+        )
 
         /* CTA */
-        gsap.from('[data-ts="cta-wrap"]', {
-          y: 20,
-          opacity: 0,
-          duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: '[data-ts="cta-wrap"]',
-            start: 'top 90%',
-          },
-        })
+        gsap.fromTo('[data-ts="cta-wrap"]', 
+          { y: 20, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-ts="cta-wrap"]', start: 'top 90%' } }
+        )
 
         // sécurité layout
         ScrollTrigger.refresh()

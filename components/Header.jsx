@@ -70,7 +70,7 @@ export default function Header() {
         <div className={styles.actions}>
           {/* WhatsApp */}
           <a
-            href="https://wa.me/212600000000"
+            href="https://wa.me/212634699940"
             target="_blank"
             rel="noopener noreferrer"
             className={styles.actionBtn}

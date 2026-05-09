@@ -18,6 +18,7 @@ import styles from './FleurPage.module.css'
 export default function FleurPage({ flower, similar }) {
   const ctxRef      = useRef(null)
   const rootRef     = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   /* ── State ─────────────────────────────────────────── */
   const [activeImg,    setActiveImg]    = useState(0)
@@ -34,6 +35,7 @@ export default function FleurPage({ flower, similar }) {
 
   /* ── Entrance GSAP ─────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -42,30 +44,28 @@ export default function FleurPage({ flower, similar }) {
 
       ctxRef.current = gsap.context(() => {
         /* Galerie */
-        gsap.from('[data-fp="gallery"]', {
-          x: -32, opacity: 0, duration: 0.85,
-          ease: 'power3.out', delay: 0.1,
-        })
+        gsap.fromTo('[data-fp="gallery"]', 
+          { x: -32, opacity: 0 }, 
+          { x: 0, opacity: 1, duration: 0.85, ease: 'power3.out', delay: 0.1 }
+        )
 
         /* Infos */
-        gsap.from('[data-fp="info"] > *', {
-          y: 28, opacity: 0, stagger: 0.09,
-          duration: 0.7, ease: 'power3.out', delay: 0.2,
-        })
+        gsap.fromTo('[data-fp="info"] > *', 
+          { y: 28, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.09, duration: 0.7, ease: 'power3.out', delay: 0.2 }
+        )
 
         /* Émotions */
-        gsap.from('[data-fp="ebar"]', {
-          scaleX: 0, transformOrigin: 'left',
-          stagger: 0.07, duration: 0.8,
-          ease: 'power2.out', delay: 0.55,
-        })
+        gsap.fromTo('[data-fp="ebar"]', 
+          { scaleX: 0, transformOrigin: 'left' }, 
+          { scaleX: 1, stagger: 0.07, duration: 0.8, ease: 'power2.out', delay: 0.55 }
+        )
 
         /* Similaires */
-        gsap.from('[data-fp="sim"]', {
-          y: 36, opacity: 0, stagger: 0.08,
-          duration: 0.65, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-fp="simgrid"]', start: 'top 84%' },
-        })
+        gsap.fromTo('[data-fp="sim"]', 
+          { y: 36, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.08, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-fp="simgrid"]', start: 'top 84%' } }
+        )
       }, rootRef.current)
     }
     init()

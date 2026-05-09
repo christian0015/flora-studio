@@ -80,6 +80,7 @@ export default function FAQ() {
   const ctxRef                = useRef<any>(null)
   const [active, setActive]   = useState<string | null>(null)
   const [filter, setFilter]   = useState<CategoryId>('all')
+  const [mounted, setMounted] = useState(false)
 
   const visible = FAQ_ITEMS.filter(
     item => filter === 'all' || item.category === filter
@@ -87,6 +88,7 @@ export default function FAQ() {
 
   /* ── Entrance GSAP ──────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -95,19 +97,18 @@ export default function FAQ() {
       if (!el) return
 
       ctxRef.current = gsap.context(() => {
-        gsap.from('[data-faq="header"] > *', {
-          y: 22, opacity: 0, stagger: 0.1, duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-faq="header"]', start: 'top 85%' },
-        })
-        gsap.from('[data-faq="filters"]', {
-          y: 16, opacity: 0, duration: 0.5, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-faq="filters"]', start: 'top 88%' },
-        })
-        gsap.from('[data-faq="list"]', {
-          y: 28, opacity: 0, duration: 0.7, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-faq="list"]', start: 'top 85%' },
-        })
+        gsap.fromTo('[data-faq="header"] > *', 
+          { y: 22, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-faq="header"]', start: 'top 85%' } }
+        )
+        gsap.fromTo('[data-faq="filters"]', 
+          { y: 16, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', scrollTrigger: { trigger: '[data-faq="filters"]', start: 'top 88%' } }
+        )
+        gsap.fromTo('[data-faq="list"]', 
+          { y: 28, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: '[data-faq="list"]', start: 'top 85%' } }
+        )
       }, el)
     }
     init()

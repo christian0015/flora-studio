@@ -40,6 +40,7 @@ export default function BoutiqueClient() {
   const ctxRef       = useRef(null)
   const heroRef      = useRef(null)
   const gridRef      = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   /* ── State ────────────────────────────────────────── */
   const [query,       setQuery]       = useState(searchParams.get('q')        ?? '')
@@ -93,6 +94,7 @@ export default function BoutiqueClient() {
 
   /* ── Entrance animation ───────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -101,10 +103,11 @@ export default function BoutiqueClient() {
       if (!heroRef.current) return
 
       ctxRef.current = gsap.context(() => {
-        gsap.from('[data-b="hero"] > *', {
-          y: 30, opacity: 0, stagger: 0.1, duration: 0.7,
-          ease: 'power3.out', delay: 0.1,
-        })
+        // Animate from their current visible state (not from hidden)
+        gsap.fromTo('[data-b="hero"] > *', 
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.7, ease: 'power3.out', delay: 0.1 }
+        )
       }, heroRef.current)
     }
     init()
@@ -116,17 +119,15 @@ export default function BoutiqueClient() {
     const { default: gsap } = await import('gsap')
     const cards = gridRef.current?.querySelectorAll('[data-b="card"]')
     if (!cards?.length) return
-    gsap.from(cards, {
-      y: 20, opacity: 0,
-      stagger: { amount: 0.35, from: 'start' },
-      duration: 0.5, ease: 'power2.out',
-      clearProps: 'all',
-    })
+    gsap.fromTo(cards,
+      { y: 20, opacity: 0 },
+      { y: 0, opacity: 1, stagger: { amount: 0.35, from: 'start' }, duration: 0.5, ease: 'power2.out', clearProps: 'all' }
+    )
   }, [])
 
   useEffect(() => {
-    animateGrid()
-  }, [results, animateGrid])
+    if (mounted) animateGrid()
+  }, [results, animateGrid, mounted])
 
   /* ── Helpers ──────────────────────────────────────── */
   const resetAll = () => {

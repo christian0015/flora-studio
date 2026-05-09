@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getFeaturedFlowers, getTopEmotions, formatPrice } from '@/libs/data'
@@ -13,8 +13,10 @@ const featured = getFeaturedFlowers(4)
 export default function FeaturedFlowers() {
   const sectionRef = useRef(null)
   const ctxRef     = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -23,21 +25,18 @@ export default function FeaturedFlowers() {
       if (!el) return
 
       ctxRef.current = gsap.context(() => {
-        gsap.from('[data-ff="header"] > *', {
-          y: 24, opacity: 0, stagger: 0.1, duration: 0.65,
-          ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ff="header"]', start: 'top 85%' },
-        })
-        gsap.from('[data-ff="card"]', {
-          y: 48, opacity: 0,
-          stagger: { amount: 0.5, from: 'start' },
-          duration: 0.8, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ff="grid"]', start: 'top 82%' },
-        })
-        gsap.from('[data-ff="footer"]', {
-          y: 20, opacity: 0, duration: 0.6, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ff="footer"]', start: 'top 90%' },
-        })
+        gsap.fromTo('[data-ff="header"] > *', 
+          { y: 24, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.1, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-ff="header"]', start: 'top 85%' } }
+        )
+        gsap.fromTo('[data-ff="card"]', 
+          { y: 48, opacity: 0 },
+          { y: 0, opacity: 1, stagger: { amount: 0.5, from: 'start' }, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: '[data-ff="grid"]', start: 'top 82%' } }
+        )
+        gsap.fromTo('[data-ff="footer"]', 
+          { y: 20, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', scrollTrigger: { trigger: '[data-ff="footer"]', start: 'top 90%' } }
+        )
       }, el)
     }
     init()

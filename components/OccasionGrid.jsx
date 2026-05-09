@@ -18,9 +18,11 @@ export default function OccasionGrid() {
   const sectionRef   = useRef(null)
   const ctxRef       = useRef(null)
   const [hovered, setHovered] = useState(null)
+  const [mounted, setMounted] = useState(false)
 
   /* ── Entrance GSAP ──────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap }    = await import('gsap')
       const { ScrollTrigger }    = await import('gsap/ScrollTrigger')
@@ -31,35 +33,22 @@ export default function OccasionGrid() {
 
       ctxRef.current = gsap.context(() => {
         // Eyebrow + headline
-        gsap.from('[data-og="header"] > *', {
-          y: 28, opacity: 0, stagger: 0.12, duration: 0.7,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: '[data-og="header"]',
-            start: 'top 85%',
-          },
-        })
+        gsap.fromTo('[data-og="header"] > *', 
+          { y: 28, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.12, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: '[data-og="header"]', start: 'top 85%' } }
+        )
 
         // Cards staggered
-        gsap.from('[data-og="card"]', {
-          y: 44, opacity: 0,
-          stagger: { amount: 0.55, from: 'start' },
-          duration: 0.75,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: '[data-og="grid"]',
-            start: 'top 80%',
-          },
-        })
+        gsap.fromTo('[data-og="card"]', 
+          { y: 44, opacity: 0 },
+          { y: 0, opacity: 1, stagger: { amount: 0.55, from: 'start' }, duration: 0.75, ease: 'power3.out', scrollTrigger: { trigger: '[data-og="grid"]', start: 'top 80%' } }
+        )
 
         // Emotion strip
-        gsap.from('[data-og="strip"]', {
-          y: 32, opacity: 0, duration: 0.8, ease: 'power3.out',
-          scrollTrigger: {
-            trigger: '[data-og="strip"]',
-            start: 'top 88%',
-          },
-        })
+        gsap.fromTo('[data-og="strip"]', 
+          { y: 32, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: '[data-og="strip"]', start: 'top 88%' } }
+        )
       }, section)
     }
 

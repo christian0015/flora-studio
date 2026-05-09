@@ -14,6 +14,7 @@ import styles from './panier.module.css'
 export default function PanierPage() {
   const rootRef = useRef(null)
   const ctxRef  = useRef(null)
+  const [mounted, setMounted] = useState(false)
 
   const items       = useCartStore(s => s.items)
   const removeItem  = useCartStore(s => s.removeItem)
@@ -34,19 +35,19 @@ export default function PanierPage() {
 
   /* ── Entrance ─────────────────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       if (!rootRef.current) return
       ctxRef.current = gsap.context(() => {
-        gsap.from('[data-cart="row"]', {
-          y: 28, opacity: 0,
-          stagger: 0.08, duration: 0.65,
-          ease: 'power3.out', delay: 0.1,
-        })
-        gsap.from('[data-cart="summary"]', {
-          y: 32, opacity: 0, duration: 0.7,
-          ease: 'power3.out', delay: 0.3,
-        })
+        gsap.fromTo('[data-cart="row"]', 
+          { y: 28, opacity: 0 }, 
+          { y: 0, opacity: 1, stagger: 0.08, duration: 0.65, ease: 'power3.out', delay: 0.1 }
+        )
+        gsap.fromTo('[data-cart="summary"]', 
+          { y: 32, opacity: 0 }, 
+          { y: 0, opacity: 1, duration: 0.7, ease: 'power3.out', delay: 0.3 }
+        )
       }, rootRef.current)
     }
     init()

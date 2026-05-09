@@ -14,6 +14,7 @@ export default function OccasionPage({ occasion, flowers, otherOccasions }) {
   const heroRef  = useRef(null)
   const ctxRef   = useRef(null)
   const [sortBy, setSortBy] = useState('popular')
+  const [mounted, setMounted] = useState(false)
 
   /* ── Tri local ───────────────────────────────────────── */
   const sorted = useMemo(() => {
@@ -28,6 +29,7 @@ export default function OccasionPage({ occasion, flowers, otherOccasions }) {
 
   /* ── Entrance GSAP ───────────────────────────────────── */
   useEffect(() => {
+    setMounted(true)
     async function init() {
       const { default: gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
@@ -36,31 +38,28 @@ export default function OccasionPage({ occasion, flowers, otherOccasions }) {
 
       ctxRef.current = gsap.context(() => {
         /* Hero */
-        gsap.from('[data-op="eyebrow"]', { y: 20, opacity: 0, duration: 0.6, ease: 'power3.out', delay: 0.1 })
-        gsap.from('[data-op="title"]',   { y: 36, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.2 })
-        gsap.from('[data-op="desc"]',    { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.35 })
-        gsap.from('[data-op="metas"]',   { y: 16, opacity: 0, duration: 0.6, ease: 'power3.out', delay: 0.48 })
+        gsap.fromTo('[data-op="eyebrow"]', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', delay: 0.1 })
+        gsap.fromTo('[data-op="title"]',   { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', delay: 0.2 })
+        gsap.fromTo('[data-op="desc"]',    { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: 'power3.out', delay: 0.35 })
+        gsap.fromTo('[data-op="metas"]',   { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', delay: 0.48 })
 
         /* Emotion bars */
-        gsap.from('[data-op="ebar"]', {
-          scaleX: 0, transformOrigin: 'left',
-          stagger: 0.08, duration: 0.8, ease: 'power2.out', delay: 0.55,
-        })
+        gsap.fromTo('[data-op="ebar"]',
+          { scaleX: 0, transformOrigin: 'left' },
+          { scaleX: 1, stagger: 0.08, duration: 0.8, ease: 'power2.out', delay: 0.55 }
+        )
 
         /* Cards */
-        gsap.from('[data-op="card"]', {
-          y: 40, opacity: 0,
-          stagger: { amount: 0.5, from: 'start' },
-          duration: 0.7, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-op="grid"]', start: 'top 82%' },
-        })
+        gsap.fromTo('[data-op="card"]',
+          { y: 40, opacity: 0 },
+          { y: 0, opacity: 1, stagger: { amount: 0.5, from: 'start' }, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: '[data-op="grid"]', start: 'top 82%' } }
+        )
 
         /* Other occasions */
-        gsap.from('[data-op="occ"]', {
-          y: 28, opacity: 0,
-          stagger: 0.07, duration: 0.65, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-op="others"]', start: 'top 88%' },
-        })
+        gsap.fromTo('[data-op="occ"]',
+          { y: 28, opacity: 0 },
+          { y: 0, opacity: 1, stagger: 0.07, duration: 0.65, ease: 'power3.out', scrollTrigger: { trigger: '[data-op="others"]', start: 'top 88%' } }
+        )
       }, heroRef.current)
     }
     init()
