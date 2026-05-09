@@ -72,7 +72,7 @@ export const metadata = {
   },
 
   /* ─── Base URL SEO ─── */
-  metadataBase: new URL('https://flora-studio.vercel.app'), // à remplacer par ton vrai domaine
+  metadataBase: new URL('https://flora-studio-ma.vercel.app'), // à remplacer par ton vrai domaine
 
   alternates: {
     canonical: '/',

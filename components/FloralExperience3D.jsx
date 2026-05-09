@@ -1,22 +1,6 @@
 'use client'
-/**
- * FloralExperience3D — VERSION 2 (Adapté de ton code R3F)
- * ──────────────────────────────────────────────────────────
- * Basé sur  : ton fichier avec MeshTransmissionMaterial + Caustics
- *             + Lightformers + easing maath
- * Retiré    : cake, straw, milkshake, fork, straw001, GLTF externe
- * Ajouté    : vase LatheGeometry, rose ShapeGeometry procédurale,
- *             pétales flottants, caméra liée au scroll via ref mutable
- *
- * Pattern scroll safe :
- *   - scrollProgress = useRef(0)  ← mutable, zéro re-render
- *   - ScrollTrigger.onUpdate → scrollProgress.current = self.progress
- *   - useFrame lit scrollProgress.current
- *   Ce pattern évite les re-renders React dans la boucle de scroll.
- *
- * deps : gsap  @react-three/fiber  @react-three/drei  three  maath
- */
-import { useEffect, useRef, useState, useMemo } from 'react'
+
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { easing } from 'maath'
 import { Canvas, useFrame } from '@react-three/fiber'
@@ -33,155 +17,147 @@ import {
 } from '@react-three/drei'
 import styles from './FloralExperience3D.module.css'
 
-/* ── Matériau hack face arrière (comme dans ton code original) */
+/* ── Matériau hack face arrière ── */
 const innerMaterial = new THREE.MeshStandardMaterial({
-  transparent:         true,
-  opacity:             0.92,
-  color:               '#0e0d0b',
-  roughness:           0,
-  side:                THREE.FrontSide,
-  blending:            THREE.AdditiveBlending,
-  polygonOffset:       true,
+  transparent: true,
+  opacity: 0.92,
+  color: '#0e0d0b',
+  roughness: 0,
+  side: THREE.FrontSide,
+  blending: THREE.AdditiveBlending,
+  polygonOffset: true,
   polygonOffsetFactor: 1,
-  envMapIntensity:     1.8,
+  envMapIntensity: 1.8,
 })
 
-/* ═══════════════════════════════════════════════════════════
-   COMPOSANT PRINCIPAL
-   ═══════════════════════════════════════════════════════════ */
 export default function FloralExperience3D() {
-  const [perfSucks, degrade]  = useState(false)
-  const sectionRef            = useRef(null)
-  // Ref mutable → ScrollTrigger l'écrit, useFrame le lit
-  // Aucun setState = aucun re-render dans la boucle de scroll
-  const scrollProgress        = useRef(0)
-  const gsapCtxRef            = useRef(null)
+  const [perfSucks, degrade] = useState(false)
+  const sectionRef = useRef(null)
+  const containerRef = useRef(null) // Nécessaire pour le scope GSAP
+  const scrollProgress = useRef(0)
 
   useEffect(() => {
-    async function init() {
-      const { default: gsap }   = await import('gsap')
-      const { ScrollTrigger }   = await import('gsap/ScrollTrigger')
+    let ctx;
+
+    const initGSAP = async () => {
+      const { default: gsap } = await import('gsap')
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
       gsap.registerPlugin(ScrollTrigger)
 
-      const section = sectionRef.current
-      if (!section) return
-
-      gsapCtxRef.current = gsap.context(() => {
-
-        /* ── Pin principal : 250vh de travel ────────────────── */
+      // gsap.context nettoie TOUT (y compris les spacers du 'pin') au démontage
+      ctx = gsap.context(() => {
+        
+        // Pin principal
         ScrollTrigger.create({
-          trigger:             section,
-          start:               'top top',
-          end:                 '+=250%',
-          pin:                 true,
-          scrub:               2,          // smooth lag pour 3D
-          anticipatePin:       1,
+          trigger: sectionRef.current,
+          start: 'top top',
+          end: '+=250%',
+          pin: true,
+          scrub: 2,
+          anticipatePin: 1,
           invalidateOnRefresh: true,
-          onUpdate:            (self) => {
-            // Écriture directe dans la ref — pas de setState
+          onUpdate: (self) => {
             scrollProgress.current = self.progress
           },
         })
 
-        /* ── Overlay texte animé séparément ─────────────────── */
-        gsap.timeline({
+        // Overlay texte
+        const textTimeline = gsap.timeline({
           scrollTrigger: {
-            trigger:  section,
-            start:    'top top',
-            end:      '+=250%',
-            scrub:    1.4,
+            trigger: sectionRef.current,
+            start: 'top top',
+            end: '+=250%',
+            scrub: 1.4,
           }
         })
-          // Apparition
+
+        textTimeline
           .from('[data-fe3="eyebrow"]', { opacity: 0, y: 24, duration: 0.25 }, 0.10)
-          .from('[data-fe3="line1"]',   { opacity: 0, y: 36, duration: 0.30 }, 0.18)
-          .from('[data-fe3="line2"]',   { opacity: 0, y: 36, duration: 0.30 }, 0.28)
-          .from('[data-fe3="tag"]',     { opacity: 0, stagger: 0.10, duration: 0.25 }, 0.38)
-          // Disparition douce avant la fin
+          .from('[data-fe3="line1"]', { opacity: 0, y: 36, duration: 0.30 }, 0.18)
+          .from('[data-fe3="line2"]', { opacity: 0, y: 36, duration: 0.30 }, 0.28)
+          .from('[data-fe3="tag"]', { opacity: 0, stagger: 0.10, duration: 0.25 }, 0.38)
           .to('[data-fe3="text-group"]', { opacity: 0, y: -24, duration: 0.25 }, 0.72)
 
-      }, section)
-
-      ScrollTrigger.refresh()
+      }, containerRef) // Scope au containerRef
     }
 
-    init()
-    return () => gsapCtxRef.current?.revert()
+    initGSAP()
+
+    return () => {
+      if (ctx) ctx.revert() // Supprime proprement les triggers et les modifications DOM
+    }
   }, [])
 
   return (
-    <section
-      ref={sectionRef}
-      className={styles.section}
-      aria-label="Notre artisanat floral — Préservé dans le verre"
-    >
-      {/* ── Canvas Three.js ─────────────────────────────────── */}
-      <Canvas
-        className={styles.canvas}
-        shadows
-        dpr={[1, perfSucks ? 1.5 : 2]}
-        camera={{ position: [0, 1.2, 8], fov: 28 }}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-        // eventSource={typeof document !== 'undefined' ? document.body : undefined}
-        eventPrefix="client"
+    <div ref={containerRef}>
+      <section
+        ref={sectionRef}
+        className={styles.section}
+        aria-label="Notre artisanat floral — Préservé dans le verre"
       >
-        <PerformanceMonitor onDecline={() => degrade(true)} />
-        <color attach="background" args={['#0c0c0a']} />
+        <Canvas
+          className={styles.canvas}
+          shadows
+          dpr={[1, perfSucks ? 1.5 : 2]}
+          camera={{ position: [0, 1.2, 8], fov: 28 }}
+          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+          eventPrefix="client"
+          frameloop={typeof window !== 'undefined' && !document.hidden ? 'always' : 'demand'}
+        >
+          <PerformanceMonitor onDecline={() => degrade(true)} />
+          <color attach="background" args={['#0c0c0a']} />
 
-        {/* Scène principale */}
-        <group position={[0, -0.9, 0]} rotation={[0, -0.2, 0]}>
-          <FloralScene />
-          <AccumulativeShadows
-            frames={80}
-            alphaTest={0.82}
-            opacity={0.5}
-            color="#0e0c07"
-            scale={14}
-            position={[0, -0.003, 0]}
-          >
-            <RandomizedLight
-              amount={6}
-              radius={4}
-              ambient={0.35}
-              intensity={0.9}
-              position={[-1.5, 3, -1.5]}
-              bias={0.001}
-            />
-          </AccumulativeShadows>
-        </group>
+          <group position={[0, -0.9, 0]} rotation={[0, -0.2, 0]}>
+            <FloralScene />
+            <AccumulativeShadows
+              frames={80}
+              alphaTest={0.82}
+              opacity={0.5}
+              color="#0e0c07"
+              scale={14}
+              position={[0, -0.003, 0]}
+            >
+              <RandomizedLight
+                amount={6}
+                radius={4}
+                ambient={0.35}
+                intensity={0.9}
+                position={[-1.5, 3, -1.5]}
+                bias={0.001}
+              />
+            </AccumulativeShadows>
+          </group>
 
-        <Env perfSucks={perfSucks} />
-        <CameraRig scrollProgress={scrollProgress} perfSucks={perfSucks} />
-      </Canvas>
+          <Env perfSucks={perfSucks} />
+          <CameraRig scrollProgress={scrollProgress} perfSucks={perfSucks} />
+        </Canvas>
 
-      {/* ── Overlay texte HTML (par-dessus le canvas) ─────── */}
-      <div className={styles.overlay}>
-        <div data-fe3="text-group" className={styles.textGroup}>
-          <p data-fe3="eyebrow" className={styles.eyebrow}>
-            Artisanat floral
-          </p>
-          <h2 className={styles.headline} aria-label="Préservée dans le verre.">
-            <span data-fe3="line1" className={styles.headLine1}>
-              <em>Préservée</em>
-            </span>
-            <span data-fe3="line2" className={styles.headLine2}>
-              dans le verre.
-            </span>
-          </h2>
-          <div className={styles.tags}>
-            {['Qualité premium', 'Fraîcheur garantie', 'Préparation jour J'].map(t => (
-              <span data-fe3="tag" key={t} className={styles.tag}>{t}</span>
-            ))}
+        <div className={styles.overlay}>
+          <div data-fe3="text-group" className={styles.textGroup}>
+            <p data-fe3="eyebrow" className={styles.eyebrow}>
+              Artisanat floral
+            </p>
+            <h2 className={styles.headline} aria-label="Préservée dans le verre.">
+              <span data-fe3="line1" className={styles.headLine1}>
+                <em>Préservée</em>
+              </span>
+              <span data-fe3="line2" className={styles.headLine2}>
+                dans le verre.
+              </span>
+            </h2>
+            <div className={styles.tags}>
+              {['Qualité premium', 'Fraîcheur garantie', 'Préparation jour J'].map(t => (
+                <span data-fe3="tag" key={t} className={styles.tag}>{t}</span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SCÈNE FLORALE
-   ═══════════════════════════════════════════════════════════ */
+/* ── SCÈNE FLORALE ── */
 function FloralScene() {
   return (
     <group>
@@ -194,33 +170,29 @@ function FloralScene() {
   )
 }
 
-/* ── Vase en verre procédural ──────────────────────────── */
 function GlassVase() {
-  // Courbe LatheGeometry = vase élégant sans GLTF
   const { outerGeo, innerGeo } = useMemo(() => {
     const buildPoints = (offset = 0) => {
       const pts = []
       for (let i = 0; i <= 28; i++) {
         const t = i / 28
-        // Profil de vase : fond étroit → panse → col
-        const body    = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.34
-        const foot    = t < 0.10 ? (0.10 - t) * 0.6 : 0
-        const neck    = t > 0.88 ? (t - 0.88) * 0.4 : 0
-        const radius  = 0.09 + body + foot + neck + offset
-        const y       = t * 2.4 - 0.12
+        const body = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.34
+        const foot = t < 0.10 ? (0.10 - t) * 0.6 : 0
+        const neck = t > 0.88 ? (t - 0.88) * 0.4 : 0
+        const radius = 0.09 + body + foot + neck + offset
+        const y = t * 2.4 - 0.12
         pts.push(new THREE.Vector2(radius, y))
       }
       return pts
     }
     return {
-      outerGeo: new THREE.LatheGeometry(buildPoints(0),      96),
+      outerGeo: new THREE.LatheGeometry(buildPoints(0), 96),
       innerGeo: new THREE.LatheGeometry(buildPoints(-0.022), 96),
     }
   }, [])
 
   return (
     <>
-      {/* Vase en verre — MeshTransmissionMaterial comme dans ton code */}
       <Caustics
         backfaces
         color={[1.0, 0.92, 0.72]}
@@ -248,7 +220,6 @@ function GlassVase() {
         </mesh>
       </Caustics>
 
-      {/* Back-face reflections hack — même pattern que ton code original */}
       <mesh
         scale={[0.94, 1, 0.94]}
         geometry={outerGeo}
@@ -259,15 +230,13 @@ function GlassVase() {
   )
 }
 
-/* ── Assemblage rose + tige ────────────────────────────── */
 function RoseAssembly() {
-  // Tige CatmullRom → TubeGeometry
   const stemGeo = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3( 0.02,  0.06,  0.00),
-      new THREE.Vector3( 0.05,  0.55,  0.03),
-      new THREE.Vector3(-0.03,  1.05, -0.02),
-      new THREE.Vector3( 0.01,  1.48,  0.00),
+      new THREE.Vector3(0.02, 0.06, 0.00),
+      new THREE.Vector3(0.05, 0.55, 0.03),
+      new THREE.Vector3(-0.03, 1.05, -0.02),
+      new THREE.Vector3(0.01, 1.48, 0.00),
     ])
     return new THREE.TubeGeometry(curve, 24, 0.013, 7, false)
   }, [])
@@ -278,50 +247,43 @@ function RoseAssembly() {
   return (
     <group>
       <mesh geometry={stemGeo} material={stemMat} castShadow />
-      {/* Feuilles */}
       <Leaf
         position={[-0.09, 0.68, 0.05]}
-        rotation={[0.1,  0.4, -0.55]}
+        rotation={[0.1, 0.4, -0.55]}
         scale={0.85}
       />
       <Leaf
-        position={[ 0.07, 0.94, -0.04]}
-        rotation={[-0.1, -0.3,  0.45]}
+        position={[0.07, 0.94, -0.04]}
+        rotation={[-0.1, -0.3, 0.45]}
         scale={0.75}
       />
-      {/* Tête de rose avec slow rotation */}
       <RoseHead position={[0, 1.50, 0]} />
     </group>
   )
 }
 
-/* ── Tête de rose procédurale ──────────────────────────── */
 function RoseHead({ position }) {
   const groupRef = useRef()
 
-  // Rotation très lente — effet "vivant"
   useFrame((_, delta) => {
     if (groupRef.current) groupRef.current.rotation.y += delta * 0.10
   })
 
-  // Pétale unique ShapeGeometry (réutilisé pour toutes les couches)
   const petalGeo = useMemo(() => {
     const s = new THREE.Shape()
     s.moveTo(0, 0)
-    s.bezierCurveTo( 0.22, 0.06,  0.26, 0.40, 0, 0.76)
+    s.bezierCurveTo(0.22, 0.06, 0.26, 0.40, 0, 0.76)
     s.bezierCurveTo(-0.26, 0.40, -0.22, 0.06, 0, 0)
     return new THREE.ShapeGeometry(s, 18)
   }, [])
 
-  // Couches : [rayon, nbPétales, inclinaison, scale]
   const LAYERS = [
-    { r: 0.10, n: 5,  tilt: 0.60, sc: 0.85 },  // cœur serré
-    { r: 0.20, n: 6,  tilt: 0.44, sc: 1.05 },
-    { r: 0.30, n: 7,  tilt: 0.30, sc: 1.20 },
-    { r: 0.40, n: 8,  tilt: 0.18, sc: 1.35 },  // pétales extérieurs
+    { r: 0.10, n: 5, tilt: 0.60, sc: 0.85 },
+    { r: 0.20, n: 6, tilt: 0.44, sc: 1.05 },
+    { r: 0.30, n: 7, tilt: 0.30, sc: 1.20 },
+    { r: 0.40, n: 8, tilt: 0.18, sc: 1.35 },
   ]
 
-  // Matériaux légèrement différents par couche
   const mats = useMemo(() =>
     ['#c27858', '#c87f60', '#d08868', '#d89070'].map(color =>
       new THREE.MeshStandardMaterial({
@@ -354,7 +316,6 @@ function RoseHead({ position }) {
           )
         })
       )}
-      {/* Pistil central */}
       <mesh position={[0, 0.06, 0]}>
         <sphereGeometry args={[0.08, 14, 14]} />
         <meshStandardMaterial color="#a05840" roughness={0.72} />
@@ -363,21 +324,20 @@ function RoseHead({ position }) {
   )
 }
 
-/* ── Feuille ShapeGeometry ─────────────────────────────── */
 function Leaf({ position, rotation, scale = 1 }) {
   const geo = useMemo(() => {
     const s = new THREE.Shape()
     s.moveTo(0, 0)
-    s.bezierCurveTo( 0.14, 0.05,  0.16, 0.28, 0, 0.52)
+    s.bezierCurveTo(0.14, 0.05, 0.16, 0.28, 0, 0.52)
     s.bezierCurveTo(-0.16, 0.28, -0.14, 0.05, 0, 0)
     return new THREE.ShapeGeometry(s, 14)
   }, [])
 
   const mat = useMemo(() =>
     new THREE.MeshStandardMaterial({
-      color:    '#243818',
+      color: '#243818',
       roughness: 0.82,
-      side:     THREE.DoubleSide,
+      side: THREE.DoubleSide,
     }), [])
 
   return (
@@ -392,51 +352,48 @@ function Leaf({ position, rotation, scale = 1 }) {
   )
 }
 
-/* ── Pétales flottants ─────────────────────────────────── */
 function FloatingPetals({ count = 10 }) {
-  // Générer les positions une seule fois
   const data = useMemo(() =>
-    Array.from({ length: count }, (_, i) => ({
-      x:      (Math.random() - 0.5) * 4.5,
-      baseY:   Math.random() * 3.2,
-      z:      (Math.random() - 0.5) * 2.8,
-      rx:      Math.random() * Math.PI,
-      ry:      Math.random() * Math.PI * 2,
-      speed:   0.08 + Math.random() * 0.14,
-      amp:     0.14 + Math.random() * 0.22,
-      phase:   Math.random() * Math.PI * 2,
-      sc:      0.45 + Math.random() * 0.55,
+    Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 4.5,
+      baseY: Math.random() * 3.2,
+      z: (Math.random() - 0.5) * 2.8,
+      rx: Math.random() * Math.PI,
+      ry: Math.random() * Math.PI * 2,
+      speed: 0.08 + Math.random() * 0.14,
+      amp: 0.14 + Math.random() * 0.22,
+      phase: Math.random() * Math.PI * 2,
+      sc: 0.45 + Math.random() * 0.55,
     }))
   , [count])
 
   const petalGeo = useMemo(() => {
     const s = new THREE.Shape()
     s.moveTo(0, 0)
-    s.bezierCurveTo( 0.09, 0.02,  0.11, 0.18, 0, 0.38)
+    s.bezierCurveTo(0.09, 0.02, 0.11, 0.18, 0, 0.38)
     s.bezierCurveTo(-0.11, 0.18, -0.09, 0.02, 0, 0)
     return new THREE.ShapeGeometry(s, 10)
   }, [])
 
   const petalMat = useMemo(() =>
     new THREE.MeshStandardMaterial({
-      color:       '#cc8060',
-      roughness:   0.70,
-      side:        THREE.DoubleSide,
+      color: '#cc8060',
+      roughness: 0.70,
+      side: THREE.DoubleSide,
       transparent: true,
-      opacity:     0.70,
+      opacity: 0.70,
     }), [])
 
-  // Refs par pétale (tableau stable)
-  const meshRefs = useRef(data.map(() => ({ current: null })))
+  const meshRefs = useRef([])
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
     data.forEach((p, i) => {
-      const mesh = meshRefs.current[i]?.current
+      const mesh = meshRefs.current[i]
       if (!mesh) return
-      mesh.position.y  = p.baseY + Math.sin(t * p.speed + p.phase) * p.amp
-      mesh.rotation.x  = p.rx   + t * p.speed * 0.4
-      mesh.rotation.z  = Math.sin(t * p.speed * 0.6 + p.phase) * 0.45
+      mesh.position.y = p.baseY + Math.sin(t * p.speed + p.phase) * p.amp
+      mesh.rotation.x = p.rx + t * p.speed * 0.4
+      mesh.rotation.z = Math.sin(t * p.speed * 0.6 + p.phase) * 0.45
     })
   })
 
@@ -445,7 +402,7 @@ function FloatingPetals({ count = 10 }) {
       {data.map((p, i) => (
         <mesh
           key={i}
-          ref={el => { meshRefs.current[i] = { current: el } }}
+          ref={el => (meshRefs.current[i] = el)}
           geometry={petalGeo}
           material={petalMat}
           position={[p.x, p.baseY, p.z]}
@@ -457,20 +414,16 @@ function FloatingPetals({ count = 10 }) {
   )
 }
 
-/* ═══════════════════════════════════════════════════════════
-   RIG CAMÉRA — lit scrollProgress.current dans useFrame
-   ═══════════════════════════════════════════════════════════ */
 function CameraRig({ scrollProgress, perfSucks }) {
   useFrame((state, delta) => {
     if (perfSucks) return
-    const p = scrollProgress.current   // 0 → 1
+    const p = scrollProgress.current
 
-    // Arc de caméra progressif sur le scroll
-    const angle  = p * Math.PI * 0.55
-    const dist   = 8 - p * 1.2
-    const camX   = Math.sin(angle) * dist + state.pointer.x * 0.5
-    const camY   = 1.25 + p * 0.7 + state.pointer.y * 0.25
-    const camZ   = Math.cos(angle) * dist
+    const angle = p * Math.PI * 0.55
+    const dist = 8 - p * 1.2
+    const camX = Math.sin(angle) * dist + state.pointer.x * 0.5
+    const camY = 1.25 + p * 0.7 + state.pointer.y * 0.25
+    const camZ = Math.cos(angle) * dist
 
     easing.damp3(state.camera.position, [camX, camY, camZ], 0.35, delta)
     state.camera.lookAt(0, 0.8, 0)
@@ -478,9 +431,6 @@ function CameraRig({ scrollProgress, perfSucks }) {
   return null
 }
 
-/* ═══════════════════════════════════════════════════════════
-   ENVIRONNEMENT — lumières chaudes champagne
-   ═══════════════════════════════════════════════════════════ */
 function Env({ perfSucks }) {
   const ringRef = useRef()
 
@@ -507,7 +457,6 @@ function Env({ perfSucks }) {
       background={false}
       blur={0.6}
     >
-      {/* Lumière principale chaude (dessus) */}
       <Lightformer
         intensity={3.5}
         rotation-x={Math.PI / 2}
@@ -515,7 +464,6 @@ function Env({ perfSucks }) {
         scale={[10, 8, 1]}
         color="#f5e6c0"
       />
-      {/* Remplissage latéral droit */}
       <Lightformer
         intensity={1.8}
         rotation-x={Math.PI / 3}
@@ -523,7 +471,6 @@ function Env({ perfSucks }) {
         scale={[5, 4, 1]}
         color="#ffe4b0"
       />
-      {/* Touches champagne */}
       <group rotation={[Math.PI / 2, 0.9, 0]}>
         {[-2.5, 1.5, 4.5].map((x, i) => (
           <Lightformer
@@ -544,7 +491,6 @@ function Env({ perfSucks }) {
         />
       </group>
 
-      {/* Ring lumineux animé — champagne, comme le ring rouge dans ton code */}
       <group ref={ringRef}>
         <Lightformer
           intensity={4}

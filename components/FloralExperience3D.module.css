@@ -109,7 +109,7 @@
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
   .overlay {
-    padding: 2rem 1.5rem;
+    padding: 8rem 1.5rem;
     /* Dégradé plus fort sur mobile (3D moins visible) */
     background: linear-gradient(
       to top,

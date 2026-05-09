@@ -5,82 +5,118 @@ import styles from './TrustSection.module.css'
 /* ── Piliers ────────────────────────────────────────────── */
 const PILLARS = [
   {
-    id:    'livraison',
-    icon:  <DeliveryIcon />,
+    id: 'livraison',
+    icon: <DeliveryIcon />,
     label: 'Livraison Casablanca',
     value: 'Même jour',
-    desc:  'Commandez avant 15h, votre bouquet arrive dans la journée. Zones desservies : Maarif, Anfa, CIL, Hay Riad, Ain Diab.',
+    desc: 'Commandez avant 15h, votre bouquet arrive dans la journée. Zones desservies : Maarif, Anfa, CIL, Hay Riad, Ain Diab.',
   },
   {
-    id:    'paiement',
-    icon:  <PaymentIcon />,
+    id: 'paiement',
+    icon: <PaymentIcon />,
     label: 'Paiement à la livraison',
     value: 'Zéro risque',
-    desc:  'Vous payez en cash uniquement à la réception. Aucune avance, aucune carte requise. Virement disponible.',
+    desc: 'Vous payez en cash uniquement à la réception. Aucune avance, aucune carte requise. Virement disponible.',
   },
   {
-    id:    'qualite',
-    icon:  <QualityIcon />,
+    id: 'qualite',
+    icon: <QualityIcon />,
     label: 'Qualité florale',
     value: 'Fraîcheur garantie',
-    desc:  'Chaque tige est sélectionnée le matin même. Si vous n\'êtes pas satisfait, nous remplaçons sans discussion.',
+    desc: "Chaque tige est sélectionnée le matin même. Si vous n'êtes pas satisfait, nous remplaçons sans discussion.",
   },
   {
-    id:    'rapidite',
-    icon:  <SpeedIcon />,
+    id: 'rapidite',
+    icon: <SpeedIcon />,
     label: 'Préparation express',
     value: '2 à 4 heures',
-    desc:  'Assemblé à la main après votre commande. Jamais en stock, toujours frais. WhatsApp pour un suivi en temps réel.',
+    desc: 'Assemblé à la main après votre commande. Jamais en stock, toujours frais. WhatsApp pour un suivi en temps réel.',
   },
 ]
 
-/* ═══════════════════════════════════════════════════════════
-   TRUST SECTION
-   ═══════════════════════════════════════════════════════════ */
 export default function TrustSection() {
   const sectionRef = useRef(null)
-  const ctxRef     = useRef(null)
+  const pillarsRef = useRef(null)
+  const ctxRef = useRef(null)
 
   useEffect(() => {
+    let gsap, ScrollTrigger
+
     async function init() {
-      const { default: gsap } = await import('gsap')
-      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
+      gsap = (await import('gsap')).default
+      ScrollTrigger = (await import('gsap/ScrollTrigger')).ScrollTrigger
+
       gsap.registerPlugin(ScrollTrigger)
+
       const el = sectionRef.current
-      if (!el) return
+      const pillarsEl = pillarsRef.current
+      if (!el || !pillarsEl) return
+
+      // IMPORTANT : reset safe avant animation (évite blocage opacity:0)
+      gsap.set('[data-ts="pillar"]', { opacity: 1, y: 0 })
 
       ctxRef.current = gsap.context(() => {
-        /* Ligne horizontale qui se trace */
+        /* Ligne horizontale */
         gsap.from('[data-ts="rule"]', {
-          scaleX: 0, transformOrigin: 'left center',
-          duration: 1.2, ease: 'power3.inOut',
-          scrollTrigger: { trigger: el, start: 'top 80%' },
+          scaleX: 0,
+          transformOrigin: 'left center',
+          duration: 1.2,
+          ease: 'power3.inOut',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 80%',
+          },
         })
 
         /* Header */
         gsap.from('[data-ts="header"] > *', {
-          y: 22, opacity: 0, stagger: 0.1, duration: 0.65,
+          y: 22,
+          opacity: 0,
+          stagger: 0.1,
+          duration: 0.65,
           ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ts="header"]', start: 'top 82%' },
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 82%',
+          },
         })
 
-        /* Piliers : entrée décalée */
+        /* 🔥 PILIERS FIXÉ ICI (PROBLÈME PRINCIPAL RÉSOLU) */
         gsap.from('[data-ts="pillar"]', {
-          y: 36, opacity: 0,
-          stagger: { amount: 0.45 },
-          duration: 0.75, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ts="pillars"]', start: 'top 82%' },
+          y: 36,
+          opacity: 0,
+          stagger: 0.2,
+          duration: 0.75,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: pillarsEl,
+            start: 'top 80%',
+            once: true,
+          },
         })
 
-        /* Ligne du bas */
+        /* CTA */
         gsap.from('[data-ts="cta-wrap"]', {
-          y: 20, opacity: 0, duration: 0.65, ease: 'power3.out',
-          scrollTrigger: { trigger: '[data-ts="cta-wrap"]', start: 'top 90%' },
+          y: 20,
+          opacity: 0,
+          duration: 0.65,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: '[data-ts="cta-wrap"]',
+            start: 'top 90%',
+          },
         })
+
+        // sécurité layout
+        ScrollTrigger.refresh()
       }, el)
     }
+
     init()
-    return () => ctxRef.current?.revert()
+
+    return () => {
+      ctxRef.current?.revert()
+    }
   }, [])
 
   return (
@@ -89,26 +125,23 @@ export default function TrustSection() {
       className={styles.section}
       aria-label="Nos engagements"
     >
-      {/* ── Fond foncé (container intérieur) ───────────── */}
       <div className={styles.inner}>
 
-        {/* Ligne champagne décorative */}
         <div data-ts="rule" className={styles.rule} aria-hidden />
 
-        {/* ── Header ─────────────────────────────────── */}
         <div data-ts="header" className={styles.header}>
           <p className={styles.eyebrow}>Nos engagements</p>
           <h2 className={styles.headline}>
-            Offrir avec<em> confiance.</em>
+            Offrir avec <em>confiance.</em>
           </h2>
         </div>
 
-        {/* ── Piliers ─────────────────────────────────── */}
+        {/* PILIERS REF */}
         <div
+          ref={pillarsRef}
           data-ts="pillars"
           className={styles.pillars}
           role="list"
-          aria-label="Nos engagements qualité et service"
         >
           {PILLARS.map((p, i) => (
             <article
@@ -117,24 +150,20 @@ export default function TrustSection() {
               className={styles.pillar}
               role="listitem"
             >
-              {/* Numéro */}
               <span className={styles.pillarNum} aria-hidden>
                 0{i + 1}
               </span>
 
-              {/* Icône */}
               <div className={styles.pillarIcon} aria-hidden>
                 {p.icon}
               </div>
 
-              {/* Contenu */}
               <div className={styles.pillarContent}>
                 <p className={styles.pillarLabel}>{p.label}</p>
                 <p className={styles.pillarValue}>{p.value}</p>
                 <p className={styles.pillarDesc}>{p.desc}</p>
               </div>
 
-              {/* Séparateur vertical */}
               {i < PILLARS.length - 1 && (
                 <span className={styles.pillarSep} aria-hidden />
               )}
@@ -142,7 +171,6 @@ export default function TrustSection() {
           ))}
         </div>
 
-        {/* ── CTA WhatsApp ────────────────────────────── */}
         <div data-ts="cta-wrap" className={styles.ctaWrap}>
           <div className={styles.ctaRule} aria-hidden />
           <a
@@ -150,7 +178,6 @@ export default function TrustSection() {
             target="_blank"
             rel="noopener noreferrer"
             className={styles.ctaBtn}
-            aria-label="Commander via WhatsApp"
           >
             <WhatsAppIcon />
             Commander via WhatsApp
@@ -163,7 +190,7 @@ export default function TrustSection() {
   )
 }
 
-/* ─── SVG Icons ───────────────────────────────────────────── */
+/* ─── ICONS ───────────────────────────────────────────── */
 function DeliveryIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
