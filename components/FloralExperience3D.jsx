@@ -47,13 +47,26 @@ export default function FloralExperience3D() {
       const section = sectionRef.current
       if (!section) return
 
-      gsap.set('[data-fe3="eyebrow"]', { opacity: 1, y: 0 })
-      gsap.set('[data-fe3="line1"]', { opacity: 1, y: 0 })
-      gsap.set('[data-fe3="line2"]', { opacity: 1, y: 0 })
-      gsap.set('[data-fe3="tag"]', { opacity: 1, y: 0 })
-      gsap.set('[data-fe3="text-group"]', { opacity: 1, y: 0 })
+      /* ─────────────────────────────────────────────────────
+         FIX MOBILE : configuration globale ScrollTrigger
+         • ignoreMobileResize : évite le re-calcul déclenché
+           par l'apparition/disparition de la barre d'adresse
+         • normalizeScroll    : unifie les événements scroll
+           natifs / touch sur iOS & Android
+      ───────────────────────────────────────────────────── */
+      ScrollTrigger.config({ ignoreMobileResize: true })
+      ScrollTrigger.normalizeScroll(true)
+
+      /* États initiaux — tout invisible sauf si GSAP les anime */
+      gsap.set('[data-fe3="eyebrow"]',    { opacity: 0, y: 24 })
+      gsap.set('[data-fe3="line1"]',      { opacity: 0, y: 36 })
+      gsap.set('[data-fe3="line2"]',      { opacity: 0, y: 36 })
+      gsap.set('[data-fe3="tag"]',        { opacity: 0, y: 20 })
+      gsap.set('[data-fe3="text-group"]', { opacity: 1, y: 0  })
 
       ctxRef.current = gsap.context(() => {
+
+        /* ── PIN principal ── */
         ScrollTrigger.create({
           trigger: section,
           start: 'top top',
@@ -63,42 +76,70 @@ export default function FloralExperience3D() {
           scrub: 1.8,
           anticipatePin: 1,
           invalidateOnRefresh: true,
+          /* FIX MOBILE : le progress est utilisé par R3F via ref,
+             on le met à jour ici dans tous les cas               */
           onUpdate: (self) => {
             scrollProgress.current = self.progress
           },
         })
 
+        /* ── Timeline texte ── */
         const textTimeline = gsap.timeline({
           scrollTrigger: {
             trigger: section,
             start: 'top top',
             end: '+=200%',
             scrub: 1.4,
-          }
+            invalidateOnRefresh: true,
+          },
         })
 
         textTimeline
-          .fromTo('[data-fe3="eyebrow"]', 
+          .fromTo('[data-fe3="eyebrow"]',
             { opacity: 0, y: 24 },
             { opacity: 1, y: 0, duration: 0.25 }, 0.10)
-          .fromTo('[data-fe3="line1"]', 
+          .fromTo('[data-fe3="line1"]',
             { opacity: 0, y: 36 },
             { opacity: 1, y: 0, duration: 0.30 }, 0.18)
-          .fromTo('[data-fe3="line2"]', 
+          .fromTo('[data-fe3="line2"]',
             { opacity: 0, y: 36 },
             { opacity: 1, y: 0, duration: 0.30 }, 0.28)
-          .fromTo('[data-fe3="tag"]', 
+          .fromTo('[data-fe3="tag"]',
             { opacity: 0, y: 20 },
             { opacity: 1, y: 0, stagger: 0.10, duration: 0.25 }, 0.38)
-          .to('[data-fe3="text-group"]', 
+          .to('[data-fe3="text-group"]',
             { opacity: 0, y: -24, duration: 0.25 }, 0.72)
+
       }, section)
+
+      /* ─────────────────────────────────────────────────────
+         FIX MOBILE : forcer un refresh après le premier
+         paint pour que ScrollTrigger recalcule les bounds
+         correctement (utile quand la barre d'adresse
+         disparaît au chargement sur Safari/Chrome mobile)
+      ───────────────────────────────────────────────────── */
+      const refreshTimer = setTimeout(() => {
+        ScrollTrigger.refresh()
+      }, 300)
+
+      /* Refresh aussi si l'orientation change */
+      const onOrientationChange = () => {
+        setTimeout(() => ScrollTrigger.refresh(), 400)
+      }
+      window.addEventListener('orientationchange', onOrientationChange)
+
+      return () => {
+        clearTimeout(refreshTimer)
+        window.removeEventListener('orientationchange', onOrientationChange)
+      }
     }
 
-    initGSAP()
+    let cleanup = null
+    initGSAP().then((c) => { cleanup = c })
 
     return () => {
       if (ctxRef.current) ctxRef.current.revert()
+      if (cleanup) cleanup()
     }
   }, [])
 
@@ -116,7 +157,10 @@ export default function FloralExperience3D() {
           camera={{ position: [0, 1.2, 8], fov: 28 }}
           gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
           eventPrefix="client"
-          frameloop={typeof window !== 'undefined' && !document.hidden ? 'always' : 'demand'}
+          /* FIX MOBILE : 'always' garanti que le canvas continue
+             de rendre même quand le scroll est géré par le
+             normalizeScroll de GSAP (pas d'événements natifs) */
+          frameloop="always"
         >
           <PerformanceMonitor onDecline={() => degrade(true)} />
           <color attach="background" args={['#0c0c0a']} />
@@ -143,6 +187,7 @@ export default function FloralExperience3D() {
           </group>
 
           <Env perfSucks={perfSucks} />
+          {/* scrollProgress partagé via ref — pas de re-render */}
           <CameraRig scrollProgress={scrollProgress} perfSucks={perfSucks} />
         </Canvas>
 
@@ -181,7 +226,7 @@ function FloralScene() {
         {/* Rose existante */}
         {/* <RoseAssembly /> */}
         {/* Fleur séchée du GLB - positionnée à côté */}
-        <DriedFlower position={[-0.4, 1.2, 2]} scale={0.8} rotation ={[1, 2, 2]} />
+        <DriedFlower position={[-0.4, 1.2, 2]} scale={0.8} rotation={[1, 2, 2]} />
       </Center>
       <FloatingPetals count={10} />
     </group>
@@ -191,7 +236,7 @@ function FloralScene() {
 /* ========== FLEUR SÉCHÉE IMPORTÉE DU GLB ========== */
 function DriedFlower({ position = [0, 0, 0], scale = 1 }) {
   const { nodes, materials } = useGLTF('/glass-transformed.glb')
-  
+
   return (
     <group position={position} scale={scale}>
       <Center rotation={[2, -4, -2.6]} top>
@@ -261,37 +306,38 @@ function GlassVase() {
     </>
   )
 }
+
 function GlassVase02() {
   const { outerGeo, innerGeo } = useMemo(() => {
     const buildPoints = (offset = 0) => {
       const pts = []
       const segments = 32 // Augmenté pour plus de précision sur la courbe
-      
+
       for (let i = 0; i <= segments; i++) {
         const t = i / segments
-        
+
         // --- PARAMÈTRES DE FORME ---
-        
+
         // 1. La Base : Très large au départ (t=0)
-        const beforeBaseFlare = Math.pow(-0.14, 1) * 0.082 
-        const baseFlare = Math.pow(1.1 - t, 3) * 0.3 
-        
+        const beforeBaseFlare = Math.pow(-0.14, 1) * 0.082
+        const baseFlare = Math.pow(1.1 - t, 3) * 0.3
+
         // 2. Le Milieu : On utilise une courbe en cloche inversée pour serrer
         // Plus le multiplicateur est bas (ex: 0.1), plus la taille est fine
         const middleTight = Math.pow(Math.sin(t * Math.PI), 2) * 0.0515
-        
+
         // 3. La Tête : Large ouverture en haut (t=1)
         // Augmente le 0.8 pour une tête encore plus large
-        const topOpen = Math.pow(t, 4) * 0.20 
-        
+        const topOpen = Math.pow(t, 4) * 0.20
+
         // Rayon minimal constant pour éviter que le milieu ne soit à zéro
-        const minRadius = 0.08 
-        
+        const minRadius = 0.08
+
         const radius = minRadius + beforeBaseFlare + baseFlare + middleTight + topOpen + offset
-        
+
         // Hauteur (y)
         const y = t * 2.4 - 0.12
-        
+
         pts.push(new THREE.Vector2(radius, y))
       }
       return pts
@@ -317,12 +363,12 @@ function GlassVase02() {
         ior={1.04}
         backfaceIor={1.28}
       >
-        <mesh 
-          castShadow 
-          receiveShadow 
-          geometry={outerGeo} 
-          position={[-0.9, 0.2, 1]} 
-          scale={[0.56, 0.81, 0.56]} 
+        <mesh
+          castShadow
+          receiveShadow
+          geometry={outerGeo}
+          position={[-0.9, 0.2, 1]}
+          scale={[0.56, 0.81, 0.56]}
           rotation={[0, -1, -0.71]}
         >
           <MeshTransmissionMaterial
@@ -343,21 +389,22 @@ function GlassVase02() {
       {/* Reste du groupe conservant tes positions exactes */}
       <mesh
         geometry={outerGeo}
-        material={innerMaterial} 
-        position={[-0.9, 0.2, 1]} 
-        rotation={[0, -1, -0.71]} 
+        material={innerMaterial}
+        position={[-0.9, 0.2, 1]}
+        rotation={[0, -1, -0.71]}
         scale={[0.61, 0.81, 0.61]}
       />
-      <mesh 
-        geometry={innerGeo} 
-        material={innerMaterial} 
-        position={[-0.9, 0.2, 1]} 
-        rotation={[0, -1, -0.71]} 
-        scale={[0.55, 0.81, 0.55]} 
+      <mesh
+        geometry={innerGeo}
+        material={innerMaterial}
+        position={[-0.9, 0.2, 1]}
+        rotation={[0, -1, -0.71]}
+        scale={[0.55, 0.81, 0.55]}
       />
     </>
   )
 }
+
 function RoseAssembly() {
   const stemGeo = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
@@ -374,7 +421,7 @@ function RoseAssembly() {
 
   return (
     <group>
-      <mesh geometry={stemGeo} material={stemMat} castShadow scale={[1,1.8,1]} />
+      <mesh geometry={stemGeo} material={stemMat} castShadow scale={[1, 1.8, 1]} />
       <Leaf
         position={[-0.09, 2.468, 0.05]}
         rotation={[0.1, 10.4, -0.55]}
@@ -542,18 +589,35 @@ function FloatingPetals({ count = 10 }) {
   )
 }
 
+/* ─────────────────────────────────────────────────────────
+   CameraRig — lit scrollProgress (ref partagée, zéro re-render)
+   FIX MOBILE : on ne dépend plus de state.pointer (qui reste
+   à 0 sur mobile sans hover), on l'utilise seulement en
+   bonus sur desktop. La rotation scroll est toujours active.
+───────────────────────────────────────────────────────── */
 function CameraRig({ scrollProgress, perfSucks }) {
+  /* Détection tactile — stable, calculée une seule fois */
+  const isTouchDevice = useRef(
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  )
+
   useFrame((state, delta) => {
-    if (perfSucks) return
     const p = scrollProgress.current
 
     const angle = p * Math.PI * 0.55
-    const dist = 8 - p * 1.2
-    const camX = Math.sin(angle) * dist + state.pointer.x * 0.5
-    const camY = 1.25 + p * 0.7 + state.pointer.y * 0.25
+    const dist  = 8 - p * 1.2
+
+    /* Sur mobile/tactile : pas de parallaxe pointer,
+       sur desktop          : légère réactivité souris  */
+    const pointerInfluence = isTouchDevice.current ? 0 : 1
+    const camX = Math.sin(angle) * dist + state.pointer.x * 0.5 * pointerInfluence
+    const camY = 1.25 + p * 0.7 + state.pointer.y * 0.25 * pointerInfluence
     const camZ = Math.cos(angle) * dist
 
-    easing.damp3(state.camera.position, [camX, camY, camZ], 0.35, delta)
+    /* damp plus réactif sur mobile pour ne pas paraître bloqué */
+    const dampFactor = isTouchDevice.current ? 0.18 : 0.35
+    easing.damp3(state.camera.position, [camX, camY, camZ], dampFactor, delta)
     state.camera.lookAt(0, 0.8, 0)
   })
   return null
