@@ -265,18 +265,40 @@ function GlassVase02() {
   const { outerGeo, innerGeo } = useMemo(() => {
     const buildPoints = (offset = 0) => {
       const pts = []
-      for (let i = 0; i <= 28; i++) {
-        const t = i / 28
-        const body = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.34
-        const foot = t < 0.10 ? (0.15 - t) * 0.6 : 0
-        const neck = t > 0.88 ? (t - 0.88) * 0.4 : 0
-        const radius = 0.09 + body + foot + neck + offset
+      const segments = 32 // Augmenté pour plus de précision sur la courbe
+      
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments
+        
+        // --- PARAMÈTRES DE FORME ---
+        
+        // 1. La Base : Très large au départ (t=0)
+        const beforeBaseFlare = Math.pow(-0.14, 1) * 0.082 
+        const baseFlare = Math.pow(1.1 - t, 3) * 0.3 
+        
+        // 2. Le Milieu : On utilise une courbe en cloche inversée pour serrer
+        // Plus le multiplicateur est bas (ex: 0.1), plus la taille est fine
+        const middleTight = Math.pow(Math.sin(t * Math.PI), 2) * 0.0515
+        
+        // 3. La Tête : Large ouverture en haut (t=1)
+        // Augmente le 0.8 pour une tête encore plus large
+        const topOpen = Math.pow(t, 4) * 0.20 
+        
+        // Rayon minimal constant pour éviter que le milieu ne soit à zéro
+        const minRadius = 0.08 
+        
+        const radius = minRadius + beforeBaseFlare + baseFlare + middleTight + topOpen + offset
+        
+        // Hauteur (y)
         const y = t * 2.4 - 0.12
+        
         pts.push(new THREE.Vector2(radius, y))
       }
       return pts
     }
+
     return {
+      // 96 segments radiaux assurent un cercle parfaitement lisse
       outerGeo: new THREE.LatheGeometry(buildPoints(0), 96),
       innerGeo: new THREE.LatheGeometry(buildPoints(-0.022), 96),
     }
@@ -295,7 +317,14 @@ function GlassVase02() {
         ior={1.04}
         backfaceIor={1.28}
       >
-        <mesh castShadow receiveShadow geometry={outerGeo} position={[-0.9, 0.2, 1]} scale={[0.56, .81, 0.56]} rotation={[0, -1, -.71]}>
+        <mesh 
+          castShadow 
+          receiveShadow 
+          geometry={outerGeo} 
+          position={[-0.9, 0.2, 1]} 
+          scale={[0.56, 0.81, 0.56]} 
+          rotation={[0, -1, -0.71]}
+        >
           <MeshTransmissionMaterial
             backside
             backsideThickness={0.14}
@@ -311,12 +340,21 @@ function GlassVase02() {
         </mesh>
       </Caustics>
 
+      {/* Reste du groupe conservant tes positions exactes */}
       <mesh
-        // scale={[0.94, 1, 0.94]}
         geometry={outerGeo}
-        material={innerMaterial} position={[-0.9, 0.2, 1]} rotation={[0, -1, -.71]} scale={[0.61, .81, 0.61]}
+        material={innerMaterial} 
+        position={[-0.9, 0.2, 1]} 
+        rotation={[0, -1, -0.71]} 
+        scale={[0.61, 0.81, 0.61]}
       />
-      <mesh geometry={innerGeo} material={innerMaterial} position={[-0.9, 0.2, 1]} rotation={[0, -1, -.71]} scale={[0.55, .81, 0.55]} />
+      <mesh 
+        geometry={innerGeo} 
+        material={innerMaterial} 
+        position={[-0.9, 0.2, 1]} 
+        rotation={[0, -1, -0.71]} 
+        scale={[0.55, 0.81, 0.55]} 
+      />
     </>
   )
 }
