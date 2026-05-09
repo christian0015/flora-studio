@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { easing } from 'maath'
 import { Canvas, useFrame } from '@react-three/fiber'
 import {
+  useGLTF,
   Center,
   Caustics,
   Environment,
@@ -46,7 +47,6 @@ export default function FloralExperience3D() {
       const section = sectionRef.current
       if (!section) return
 
-      // S'assurer que le texte est visible avant l'animation
       gsap.set('[data-fe3="eyebrow"]', { opacity: 1, y: 0 })
       gsap.set('[data-fe3="line1"]', { opacity: 1, y: 0 })
       gsap.set('[data-fe3="line2"]', { opacity: 1, y: 0 })
@@ -54,7 +54,6 @@ export default function FloralExperience3D() {
       gsap.set('[data-fe3="text-group"]', { opacity: 1, y: 0 })
 
       ctxRef.current = gsap.context(() => {
-        // Pin principal — correction : on épingle la section elle-même
         ScrollTrigger.create({
           trigger: section,
           start: 'top top',
@@ -69,7 +68,6 @@ export default function FloralExperience3D() {
           },
         })
 
-        // Overlay texte
         const textTimeline = gsap.timeline({
           scrollTrigger: {
             trigger: section,
@@ -178,13 +176,31 @@ function FloralScene() {
   return (
     <group>
       <Center top>
-        <GlassVase />
-        <RoseAssembly />
+        {/* <GlassVase /> */}
+        <GlassVase02 />
+        {/* Rose existante */}
+        {/* <RoseAssembly /> */}
+        {/* Fleur séchée du GLB - positionnée à côté */}
+        <DriedFlower position={[-0.4, 1.2, 2]} scale={0.8} rotation ={[1, 2, 2]} />
       </Center>
       <FloatingPetals count={10} />
     </group>
   )
 }
+
+/* ========== FLEUR SÉCHÉE IMPORTÉE DU GLB ========== */
+function DriedFlower({ position = [0, 0, 0], scale = 1 }) {
+  const { nodes, materials } = useGLTF('/glass-transformed.glb')
+  
+  return (
+    <group position={position} scale={scale}>
+      <Center rotation={[2, -4, -2.6]} top>
+        <mesh castShadow geometry={nodes.flowers.geometry} material={materials['draifrawer_u1_v1.001']} />
+      </Center>
+    </group>
+  )
+}
+/* ================================================= */
 
 function GlassVase() {
   const { outerGeo, innerGeo } = useMemo(() => {
@@ -245,7 +261,65 @@ function GlassVase() {
     </>
   )
 }
+function GlassVase02() {
+  const { outerGeo, innerGeo } = useMemo(() => {
+    const buildPoints = (offset = 0) => {
+      const pts = []
+      for (let i = 0; i <= 28; i++) {
+        const t = i / 28
+        const body = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.34
+        const foot = t < 0.10 ? (0.15 - t) * 0.6 : 0
+        const neck = t > 0.88 ? (t - 0.88) * 0.4 : 0
+        const radius = 0.09 + body + foot + neck + offset
+        const y = t * 2.4 - 0.12
+        pts.push(new THREE.Vector2(radius, y))
+      }
+      return pts
+    }
+    return {
+      outerGeo: new THREE.LatheGeometry(buildPoints(0), 96),
+      innerGeo: new THREE.LatheGeometry(buildPoints(-0.022), 96),
+    }
+  }, [])
 
+  return (
+    <>
+      <Caustics
+        backfaces
+        color={[1.0, 0.92, 0.72]}
+        focus={[0, -1.1, 0]}
+        lightSource={[-1.2, 3.8, -1.8]}
+        frustum={1.8}
+        intensity={0.005}
+        worldRadius={0.085}
+        ior={1.04}
+        backfaceIor={1.28}
+      >
+        <mesh castShadow receiveShadow geometry={outerGeo} position={[-0.9, 0.2, 1]} scale={[0.56, .81, 0.56]} rotation={[0, -1, -.71]}>
+          <MeshTransmissionMaterial
+            backside
+            backsideThickness={0.14}
+            thickness={0.06}
+            chromaticAberration={0.025}
+            anisotropicBlur={0.85}
+            clearcoat={0.75}
+            clearcoatRoughness={0.65}
+            envMapIntensity={2.2}
+            color="#f8efe0"
+            samples={8}
+          />
+        </mesh>
+      </Caustics>
+
+      <mesh
+        // scale={[0.94, 1, 0.94]}
+        geometry={outerGeo}
+        material={innerMaterial} position={[-0.9, 0.2, 1]} rotation={[0, -1, -.71]} scale={[0.61, .81, 0.61]}
+      />
+      <mesh geometry={innerGeo} material={innerMaterial} position={[-0.9, 0.2, 1]} rotation={[0, -1, -.71]} scale={[0.55, .81, 0.55]} />
+    </>
+  )
+}
 function RoseAssembly() {
   const stemGeo = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
@@ -262,18 +336,18 @@ function RoseAssembly() {
 
   return (
     <group>
-      <mesh geometry={stemGeo} material={stemMat} castShadow />
+      <mesh geometry={stemGeo} material={stemMat} castShadow scale={[1,1.8,1]} />
       <Leaf
-        position={[-0.09, 0.68, 0.05]}
-        rotation={[0.1, 0.4, -0.55]}
+        position={[-0.09, 2.468, 0.05]}
+        rotation={[0.1, 10.4, -0.55]}
         scale={0.85}
       />
       <Leaf
-        position={[0.07, 0.94, -0.04]}
-        rotation={[-0.1, -0.3, 0.45]}
+        position={[0.07, 2.494, -0.04]}
+        rotation={[-0.1, -10.3, 0.45]}
         scale={0.75}
       />
-      <RoseHead position={[0, 1.50, 0]} />
+      <RoseHead position={[0, 2.550, 0]} />
     </group>
   )
 }
@@ -325,7 +399,7 @@ function RoseHead({ position }) {
                 0,
                 Math.cos(angle) * r,
               ]}
-              rotation={[Math.PI / 2 - tilt, angle, 0]}
+              rotation={[Math.PI / 2 - tilt, angle, Math.PI / 2]}
               scale={[sc, sc, 1]}
               castShadow
             />
