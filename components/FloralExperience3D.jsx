@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import * as THREE from 'three'
 import { easing } from 'maath'
 import { Canvas, useFrame } from '@react-three/fiber'
@@ -33,7 +33,7 @@ const innerMaterial = new THREE.MeshStandardMaterial({
 
 export default function FloralExperience3D() {
   const [perfSucks, degrade] = useState(false)
-  const sectionRef = useRef(null)
+  const sectionRef   = useRef(null)
   const containerRef = useRef(null)
   const scrollProgress = useRef(0)
   const ctxRef = useRef(null)
@@ -48,16 +48,15 @@ export default function FloralExperience3D() {
       if (!section) return
 
       /* ─────────────────────────────────────────────────────
-         FIX MOBILE : configuration globale ScrollTrigger
-         • ignoreMobileResize : évite le re-calcul déclenché
-           par l'apparition/disparition de la barre d'adresse
-         • normalizeScroll    : unifie les événements scroll
-           natifs / touch sur iOS & Android
+         ignoreMobileResize uniquement :
+         évite le recalcul déclenché par la barre d'adresse
+         mobile qui monte/descend. On n'utilise PAS
+         normalizeScroll — il remplace le scroll natif par
+         du JS et supprime l'inertie GPU → ça rame.
       ───────────────────────────────────────────────────── */
       ScrollTrigger.config({ ignoreMobileResize: true })
-      ScrollTrigger.normalizeScroll(true)
 
-      /* États initiaux — tout invisible sauf si GSAP les anime */
+      /* États initiaux — tout invisible, GSAP les anime */
       gsap.set('[data-fe3="eyebrow"]',    { opacity: 0, y: 24 })
       gsap.set('[data-fe3="line1"]',      { opacity: 0, y: 36 })
       gsap.set('[data-fe3="line2"]',      { opacity: 0, y: 36 })
@@ -66,18 +65,18 @@ export default function FloralExperience3D() {
 
       ctxRef.current = gsap.context(() => {
 
-        /* ── PIN principal ── */
+        /* ── PIN principal ──
+           scrub plus bas = réponse plus directe au scroll,
+           sans ce délai "visqueux" qu'on ressentait avant   */
         ScrollTrigger.create({
           trigger: section,
           start: 'top top',
           end: '+=200%',
           pin: true,
           pinSpacing: true,
-          scrub: 1.8,
+          scrub: 0.8,          // était 1.8 → beaucoup plus fluide
           anticipatePin: 1,
           invalidateOnRefresh: true,
-          /* FIX MOBILE : le progress est utilisé par R3F via ref,
-             on le met à jour ici dans tous les cas               */
           onUpdate: (self) => {
             scrollProgress.current = self.progress
           },
@@ -89,7 +88,7 @@ export default function FloralExperience3D() {
             trigger: section,
             start: 'top top',
             end: '+=200%',
-            scrub: 1.4,
+            scrub: 0.6,        // était 1.4
             invalidateOnRefresh: true,
           },
         })
@@ -113,23 +112,31 @@ export default function FloralExperience3D() {
       }, section)
 
       /* ─────────────────────────────────────────────────────
-         FIX MOBILE : forcer un refresh après le premier
-         paint pour que ScrollTrigger recalcule les bounds
-         correctement (utile quand la barre d'adresse
-         disparaît au chargement sur Safari/Chrome mobile)
+         LISTENER NATIF — fallback fiable sur mobile.
+         ScrollTrigger peut rater des événements touch sur
+         certains navigateurs mobiles. On recalcule le
+         progress directement depuis window.scrollY pour
+         que CameraRig reçoive toujours la bonne valeur,
+         même si le ST ne s'est pas déclenché.
       ───────────────────────────────────────────────────── */
-      const refreshTimer = setTimeout(() => {
-        ScrollTrigger.refresh()
-      }, 300)
-
-      /* Refresh aussi si l'orientation change */
-      const onOrientationChange = () => {
-        setTimeout(() => ScrollTrigger.refresh(), 400)
+      const updateProgressFromScroll = () => {
+        const top   = section.offsetTop
+        /* La section est pinnée sur 200% de viewport en plus */
+        const range = window.innerHeight * 2
+        const raw   = (window.scrollY - top) / range
+        scrollProgress.current = Math.min(1, Math.max(0, raw))
       }
+
+      window.addEventListener('scroll', updateProgressFromScroll, { passive: true })
+
+      /* Refresh après le premier paint + au changement d'orientation */
+      const refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 300)
+      const onOrientationChange = () => setTimeout(() => ScrollTrigger.refresh(), 400)
       window.addEventListener('orientationchange', onOrientationChange)
 
       return () => {
         clearTimeout(refreshTimer)
+        window.removeEventListener('scroll', updateProgressFromScroll)
         window.removeEventListener('orientationchange', onOrientationChange)
       }
     }
@@ -139,7 +146,7 @@ export default function FloralExperience3D() {
 
     return () => {
       if (ctxRef.current) ctxRef.current.revert()
-      if (cleanup) cleanup()
+      if (typeof cleanup === 'function') cleanup()
     }
   }, [])
 
@@ -157,9 +164,6 @@ export default function FloralExperience3D() {
           camera={{ position: [0, 1.2, 8], fov: 28 }}
           gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
           eventPrefix="client"
-          /* FIX MOBILE : 'always' garanti que le canvas continue
-             de rendre même quand le scroll est géré par le
-             normalizeScroll de GSAP (pas d'événements natifs) */
           frameloop="always"
         >
           <PerformanceMonitor onDecline={() => degrade(true)} />
@@ -187,7 +191,6 @@ export default function FloralExperience3D() {
           </group>
 
           <Env perfSucks={perfSucks} />
-          {/* scrollProgress partagé via ref — pas de re-render */}
           <CameraRig scrollProgress={scrollProgress} perfSucks={perfSucks} />
         </Canvas>
 
@@ -297,11 +300,7 @@ function GlassVase() {
         </mesh>
       </Caustics>
 
-      <mesh
-        scale={[0.94, 1, 0.94]}
-        geometry={outerGeo}
-        material={innerMaterial}
-      />
+      <mesh scale={[0.94, 1, 0.94]} geometry={outerGeo} material={innerMaterial} />
       <mesh geometry={innerGeo} material={innerMaterial} />
     </>
   )
@@ -422,16 +421,8 @@ function RoseAssembly() {
   return (
     <group>
       <mesh geometry={stemGeo} material={stemMat} castShadow scale={[1, 1.8, 1]} />
-      <Leaf
-        position={[-0.09, 2.468, 0.05]}
-        rotation={[0.1, 10.4, -0.55]}
-        scale={0.85}
-      />
-      <Leaf
-        position={[0.07, 2.494, -0.04]}
-        rotation={[-0.1, -10.3, 0.45]}
-        scale={0.75}
-      />
+      <Leaf position={[-0.09, 2.468, 0.05]}  rotation={[0.1, 10.4, -0.55]}  scale={0.85} />
+      <Leaf position={[0.07,  2.494, -0.04]} rotation={[-0.1, -10.3, 0.45]} scale={0.75} />
       <RoseHead position={[0, 2.550, 0]} />
     </group>
   )
@@ -479,11 +470,7 @@ function RoseHead({ position }) {
               key={`${li}-${i}`}
               geometry={petalGeo}
               material={mats[li]}
-              position={[
-                Math.sin(angle) * r,
-                0,
-                Math.cos(angle) * r,
-              ]}
+              position={[Math.sin(angle) * r, 0, Math.cos(angle) * r]}
               rotation={[Math.PI / 2 - tilt, angle, Math.PI / 2]}
               scale={[sc, sc, 1]}
               castShadow
@@ -516,29 +503,22 @@ function Leaf({ position, rotation, scale = 1 }) {
     }), [])
 
   return (
-    <mesh
-      geometry={geo}
-      material={mat}
-      position={position}
-      rotation={rotation}
-      scale={scale}
-      castShadow
-    />
+    <mesh geometry={geo} material={mat} position={position} rotation={rotation} scale={scale} castShadow />
   )
 }
 
 function FloatingPetals({ count = 10 }) {
   const data = useMemo(() =>
     Array.from({ length: count }, () => ({
-      x: (Math.random() - 0.5) * 4.5,
+      x:     (Math.random() - 0.5) * 4.5,
       baseY: Math.random() * 3.2,
-      z: (Math.random() - 0.5) * 2.8,
-      rx: Math.random() * Math.PI,
-      ry: Math.random() * Math.PI * 2,
+      z:     (Math.random() - 0.5) * 2.8,
+      rx:    Math.random() * Math.PI,
+      ry:    Math.random() * Math.PI * 2,
       speed: 0.08 + Math.random() * 0.14,
-      amp: 0.14 + Math.random() * 0.22,
+      amp:   0.14 + Math.random() * 0.22,
       phase: Math.random() * Math.PI * 2,
-      sc: 0.45 + Math.random() * 0.55,
+      sc:    0.45 + Math.random() * 0.55,
     }))
   , [count])
 
@@ -590,13 +570,18 @@ function FloatingPetals({ count = 10 }) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   CameraRig — lit scrollProgress (ref partagée, zéro re-render)
-   FIX MOBILE : on ne dépend plus de state.pointer (qui reste
-   à 0 sur mobile sans hover), on l'utilise seulement en
-   bonus sur desktop. La rotation scroll est toujours active.
+   CameraRig — lit scrollProgress.current à chaque frame.
+   Zéro re-render, zéro state.
+
+   Damp :
+   • Desktop : 0.50 → réactif mais encore doux
+   • Mobile  : 0.65 → encore plus direct car le canvas
+     doit suivre le scroll tactile sans sembler en retard
+
+   Sur mobile on retire l'influence pointer (pas de hover),
+   mais la rotation liée au scroll est toujours active.
 ───────────────────────────────────────────────────────── */
 function CameraRig({ scrollProgress, perfSucks }) {
-  /* Détection tactile — stable, calculée une seule fois */
   const isTouchDevice = useRef(
     typeof window !== 'undefined' &&
     ('ontouchstart' in window || navigator.maxTouchPoints > 0)
@@ -608,18 +593,22 @@ function CameraRig({ scrollProgress, perfSucks }) {
     const angle = p * Math.PI * 0.55
     const dist  = 8 - p * 1.2
 
-    /* Sur mobile/tactile : pas de parallaxe pointer,
-       sur desktop          : légère réactivité souris  */
-    const pointerInfluence = isTouchDevice.current ? 0 : 1
-    const camX = Math.sin(angle) * dist + state.pointer.x * 0.5 * pointerInfluence
-    const camY = 1.25 + p * 0.7 + state.pointer.y * 0.25 * pointerInfluence
+    const touch         = isTouchDevice.current
+    const pointerFactor = touch ? 0 : 1
+
+    const camX = Math.sin(angle) * dist + state.pointer.x * 0.5 * pointerFactor
+    const camY = 1.25 + p * 0.7  + state.pointer.y * 0.25 * pointerFactor
     const camZ = Math.cos(angle) * dist
 
-    /* damp plus réactif sur mobile pour ne pas paraître bloqué */
-    const dampFactor = isTouchDevice.current ? 0.18 : 0.35
+    /* Damp élevé = caméra qui colle sans effort perceptible.
+       Un damp trop bas (0.18) crée un lag visuel qui donne
+       l'impression que tout rame même si le FPS est bon.    */
+    const dampFactor = touch ? 0.65 : 0.50
+
     easing.damp3(state.camera.position, [camX, camY, camZ], dampFactor, delta)
     state.camera.lookAt(0, 0.8, 0)
   })
+
   return null
 }
 
@@ -630,11 +619,7 @@ function Env({ perfSucks }) {
     if (!perfSucks && ringRef.current) {
       easing.damp3(
         ringRef.current.rotation,
-        [
-          Math.PI / 2,
-          0,
-          state.clock.elapsedTime / 9 + state.pointer.x * 0.25,
-        ],
+        [Math.PI / 2, 0, state.clock.elapsedTime / 9 + state.pointer.x * 0.25],
         0.28,
         delta
       )
@@ -649,20 +634,9 @@ function Env({ perfSucks }) {
       background={false}
       blur={0.6}
     >
-      <Lightformer
-        intensity={3.5}
-        rotation-x={Math.PI / 2}
-        position={[-1, 6, -5]}
-        scale={[10, 8, 1]}
-        color="#f5e6c0"
-      />
-      <Lightformer
-        intensity={1.8}
-        rotation-x={Math.PI / 3}
-        position={[3, 4, 2]}
-        scale={[5, 4, 1]}
-        color="#ffe4b0"
-      />
+      <Lightformer intensity={3.5} rotation-x={Math.PI / 2} position={[-1, 6, -5]}  scale={[10, 8, 1]} color="#f5e6c0" />
+      <Lightformer intensity={1.8} rotation-x={Math.PI / 3} position={[3, 4, 2]}    scale={[5, 4, 1]}  color="#ffe4b0" />
+
       <group rotation={[Math.PI / 2, 0.9, 0]}>
         {[-2.5, 1.5, 4.5].map((x, i) => (
           <Lightformer
@@ -674,24 +648,11 @@ function Env({ perfSucks }) {
             color="#c9a96e"
           />
         ))}
-        <Lightformer
-          intensity={0.35}
-          rotation-y={Math.PI / 2}
-          position={[-5, 1, 0]}
-          scale={[40, 2, 1]}
-          color="#f0e8d0"
-        />
+        <Lightformer intensity={0.35} rotation-y={Math.PI / 2} position={[-5, 1, 0]} scale={[40, 2, 1]} color="#f0e8d0" />
       </group>
 
       <group ref={ringRef}>
-        <Lightformer
-          intensity={4}
-          form="ring"
-          color="#c9a96e"
-          rotation-y={Math.PI / 2}
-          position={[-5, 2, -1]}
-          scale={[9, 9, 1]}
-        />
+        <Lightformer intensity={4} form="ring" color="#c9a96e" rotation-y={Math.PI / 2} position={[-5, 2, -1]} scale={[9, 9, 1]} />
       </group>
     </Environment>
   )
