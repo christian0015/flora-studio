@@ -51,6 +51,29 @@
   border: 1px solid rgba(201, 169, 110, 0.2);
 }
 
+/* ═══════════════════════════════════════════════════════
+ * AJOUT v1.1 — SVG Racines descendantes (scroll-hint)
+ * ═══════════════════════════════════════════════════════
+ * Épinglé en haut de la section, couvre toute la largeur.
+ * z-index: 2 → devant les cercles, derrière le contenu.
+ * pointer-events: none → aucune interférence UX.
+ * mix-blend-mode: screen → se fond proprement sur le fond
+ * sombre sans créer de rectangle opaque visible.
+ */
+.rootsSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  /* Hauteur étendue pour que les racines descendent bien dans la section */
+  max-height: 36vh;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity;
+}
+
 /* ── SVG botanique ───────────────────────────────────── */
 .botanicalSvg {
   position: absolute;
@@ -231,6 +254,11 @@
   }
   .maskWord   { font-size: clamp(2rem, 10vw, 3rem); }
   .maskItalic { font-size: clamp(3rem, 14vw, 5rem); }
+
+  /* Racines légèrement réduites sur mobile */
+  .rootsSvg {
+    max-height: 30vh;
+  }
 }
 
 @media (max-width: 480px) {
