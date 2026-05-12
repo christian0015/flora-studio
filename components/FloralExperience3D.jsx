@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { easing } from 'maath'
 import { Canvas, useFrame } from '@react-three/fiber'
 import {
   useGLTF,
   Center,
+  Html,
   Caustics,
   Environment,
   Lightformer,
@@ -111,12 +112,14 @@ export default function FloralExperience3D() {
           <PerformanceMonitor onDecline={() => degrade(true)} />
           <color attach="background" args={['#0c0c0a']} />
 
+          <Suspense fallback={<LoaderSustain />}>
           <group position={[0, -0.9, 0]} rotation={[0, -0.2, 0]}>
             <FloralScene />
             <AccumulativeShadows frames={80} alphaTest={0.82} opacity={0.5} color="#0e0c07" scale={14} position={[0, -0.003, 0]}>
               <RandomizedLight amount={6} radius={4} intensity={0.9} position={[-1.5, 3, -1.5]} bias={0.001} />
             </AccumulativeShadows>
           </group>
+          </Suspense>
 
           <Env perfSucks={perfSucks} />
           <CameraRig scrollProgress={scrollProgress} />
@@ -291,5 +294,61 @@ function Env({ perfSucks }) {
         <Lightformer intensity={4} form="ring" color="#c9a96e" rotation-y={Math.PI / 2} position={[-5, 2, -1]} scale={[9, 9, 1]} />
       </group>
     </Environment>
+  )
+}
+
+function LoaderSustain() {
+  return (
+    <Html center>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: '#0c0c0a', // Fond pour masquer la scène qui charge
+      }}>
+        {/* Ligne de croissance */}
+        <div style={{
+          width: '1px',
+          height: '40px',
+          background: 'linear-gradient(to bottom, transparent, #c9a96e, transparent)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: '#0c0c0a',
+            animation: 'grow 1.5s ease-in-out infinite'
+          }} />
+        </div>
+
+        <span style={{
+          marginTop: '16px',
+          fontFamily: 'serif',
+          fontStyle: 'italic',
+          fontSize: '0.7rem',
+          letterSpacing: '0.15em',
+          color: '#c9a96e',
+          opacity: 0.5,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap'
+        }}>
+          Éclosion...
+        </span>
+
+        <style>{`
+          @keyframes grow {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+          }
+        `}</style>
+      </div>
+    </Html>
   )
 }
